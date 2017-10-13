@@ -1509,6 +1509,28 @@ class SimplePie
 		return false;
 	}
 
+    protected $content_cache_signature = false;
+
+    public function set_content_cache_signature($value) {
+        $this->content_cache_signature = $value ? '_' . md5($value) : false;
+    }
+
+    protected function checkContentCacheHit() {
+        if (!$this->content_cache_signature || !$this->raw_data || !$this->feed_url) {
+            return false;
+        }
+
+        $contentHash = md5($this->raw_data);
+
+        $key = 'SIMPLEPIE::CONTENT::CACHE::[v3]::' . $this->content_cache_signature . '|' . md5($this->feed_url);
+
+        $result = Yii::app()->cache->get($key);
+
+        Yii::app()->cache->set($key, $contentHash, 3600);
+
+        return ($result !== false) && !strcmp($contentHash, $result);
+    }
+
 	/**
 	 * Fetch the data via SimplePie_File
 	 *
@@ -1585,8 +1607,8 @@ class SimplePie
 								// is still valid.
 								$this->raw_data = false;
 								$cache->touch();
-								return true;
-							}
+                                throw new Exception('', 666);
+                            }
 						}
 						else
 						{
@@ -1718,6 +1740,11 @@ class SimplePie
 		}
 
 		$this->raw_data = $file->body;
+
+        if ($this->checkContentCacheHit()) {
+            throw new Exception('', 667);
+        }
+
 		$this->permanent_url = $file->permanent_url;
 		$headers = $file->headers;
 		$sniffer = $this->registry->create('Content_Type_Sniffer', array(&$file));
